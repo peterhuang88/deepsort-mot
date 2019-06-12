@@ -102,7 +102,7 @@ def detect_video(model, args):
                 # TODO: width and hieght are double what they're supposed to be and dunno why
                 xywh[:, 2] = abs(detections[:, 3] - detections[:, 1]) #*2
                 xywh[:, 3] = abs(detections[:, 2] - detections[:, 4]) #*2
-
+                xywh = xywh.cpu().data.numpy()
                 print(xywh)
             out.write(frame)
             if read_frames % 30 == 0:
