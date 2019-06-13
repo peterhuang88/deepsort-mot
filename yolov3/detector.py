@@ -99,11 +99,13 @@ def detect_video(model, args):
                 xywh = detections[:,1:5]
                 xywh[:, 0] = (detections[:, 1] + detections[:, 3]) / 2
                 xywh[:, 1] = (detections[:, 2] + detections[:, 4]) / 2
+                
                 # TODO: width and hieght are double what they're supposed to be and dunno why
                 xywh[:, 2] = abs(detections[:, 3] - detections[:, 1]) #*2
                 xywh[:, 3] = abs(detections[:, 2] - detections[:, 4]) #*2
-                xywh = xywh.cpu().data.numpy()
-                print(xywh)
+                xywh = xywh.cpu().data.numpy() #-> THe final bounding box that can be replaced in the deepSort
+            ######################################################                                
+            print (xywh)
             out.write(frame)
             if read_frames % 30 == 0:
                 print('Number of frames processed:', read_frames)
@@ -115,8 +117,6 @@ def detect_video(model, args):
     print('Total frames:', read_frames)
     cap.release()
     out.release()
-    if not args.no_show:
-        cv2.destroyAllWindows()
 
     print('Detected video saved to ' + output_path)
 
