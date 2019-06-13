@@ -53,6 +53,33 @@ def draw_bbox(imgs, bbox, colors, classes):
     cv2.rectangle(img, p3, p4, color, -1)
     cv2.putText(img, label, p1, cv2.FONT_HERSHEY_SIMPLEX, 1, [225, 255, 255], 1)
 
+def detect_frame(model, frame):
+    frame_tensor = cv_image2tensor(frame, input_size).unsqueeze(0)
+    frame_tensor = Variable(frame_tensor)
+
+    if args.cuda:
+        frame_tensor = frame_tensor.cuda()
+
+    detections = model(frame_tensor, args.cuda).cpu()
+            
+
+    #processresult changes the variable 'detections'
+    detections = process_result(detections, args.obj_thresh, args.nms_thresh)
+    if len(detections) != 0:
+        detections = transform_result(detections, [frame], input_size)
+                
+    xywh = detections[:,1:5]
+    xywh[:, 0] = (detections[:, 1] + detections[:, 3]) / 2
+    xywh[:, 1] = (detections[:, 2] + detections[:, 4]) / 2
+                
+    # TODO: width and hieght are double what they're supposed to be and dunno why
+    xywh[:, 2] = abs(detections[:, 3] - detections[:, 1]) #*2
+    xywh[:, 3] = abs(detections[:, 2] - detections[:, 4]) #*2
+    xywh = xywh.cpu().data.numpy() #-> THe final bounding box that can be replaced in the deepSort
+    ######################################################                                
+    return xywh 
+
+
 def detect_video(model, args):
 
     input_size = [int(model.net_info['height']), int(model.net_info['width'])]
