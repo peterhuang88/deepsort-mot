@@ -44,6 +44,7 @@ def draw_bbox(imgs, bbox, colors, classes):
     label = classes[int(bbox[-1])]
     p1 = tuple(bbox[1:3].int())
     p2 = tuple(bbox[3:5].int())
+
     color = random.choice(colors)
     cv2.rectangle(img, p1, p2, color, 2)
     text_size = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 1, 1)[0]
@@ -86,12 +87,25 @@ def detect_video(model, args):
                 frame_tensor = frame_tensor.cuda()
 
             detections = model(frame_tensor, args.cuda).cpu()
+            
+
+            #processresult changes the variable 'detections'
             detections = process_result(detections, args.obj_thresh, args.nms_thresh)
             if len(detections) != 0:
                 detections = transform_result(detections, [frame], input_size)
                 for detection in detections:
                     draw_bbox([frame], detection, colors, classes)
-
+                
+                xywh = detections[:,1:5]
+                xywh[:, 0] = (detections[:, 1] + detections[:, 3]) / 2
+                xywh[:, 1] = (detections[:, 2] + detections[:, 4]) / 2
+                
+                # TODO: width and hieght are double what they're supposed to be and dunno why
+                xywh[:, 2] = abs(detections[:, 3] - detections[:, 1]) #*2
+                xywh[:, 3] = abs(detections[:, 2] - detections[:, 4]) #*2
+                xywh = xywh.cpu().data.numpy() #-> THe final bounding box that can be replaced in the deepSort
+            ######################################################                                
+            print (xywh)
             out.write(frame)
             if read_frames % 30 == 0:
                 print('Number of frames processed:', read_frames)
@@ -103,8 +117,6 @@ def detect_video(model, args):
     print('Total frames:', read_frames)
     cap.release()
     out.release()
-    if not args.no_show:
-        cv2.destroyAllWindows()
 
     print('Detected video saved to ' + output_path)
 
