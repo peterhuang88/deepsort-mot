@@ -54,17 +54,18 @@ def draw_bbox(imgs, bbox, colors, classes):
     cv2.putText(img, label, p1, cv2.FONT_HERSHEY_SIMPLEX, 1, [225, 255, 255], 1)
 
 def detect_frame(model, frame):
+    input_size = [int(model.net_info['height']), int(model.net_info['width'])]
+
     frame_tensor = cv_image2tensor(frame, input_size).unsqueeze(0)
     frame_tensor = Variable(frame_tensor)
 
-    if args.cuda:
-        frame_tensor = frame_tensor.cuda()
+    frame_tensor = frame_tensor.cuda()
 
-    detections = model(frame_tensor, args.cuda).cpu()
+    detections = model(frame_tensor, True).cpu()
             
 
     #processresult changes the variable 'detections'
-    detections = process_result(detections, args.obj_thresh, args.nms_thresh)
+    detections = process_result(detections, 0.5, 0.4)
     if len(detections) != 0:
         detections = transform_result(detections, [frame], input_size)
                 

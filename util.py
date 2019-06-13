@@ -1,67 +1,127 @@
-import numpy as np
+import torch
+import os.path as osp
+import os
+import sys
 import cv2
+import numpy as np
 
-COLORS_10 =[(144,238,144),(178, 34, 34),(221,160,221),(  0,255,  0),(  0,128,  0),(210,105, 30),(220, 20, 60),
-            (192,192,192),(255,228,196),( 50,205, 50),(139,  0,139),(100,149,237),(138, 43,226),(238,130,238),
-            (255,  0,255),(  0,100,  0),(127,255,  0),(255,  0,255),(  0,  0,205),(255,140,  0),(255,239,213),
-            (199, 21,133),(124,252,  0),(147,112,219),(106, 90,205),(176,196,222),( 65,105,225),(173,255, 47),
-            (255, 20,147),(219,112,147),(186, 85,211),(199, 21,133),(148,  0,211),(255, 99, 71),(144,238,144),
-            (255,255,  0),(230,230,250),(  0,  0,255),(128,128,  0),(189,183,107),(255,255,224),(128,128,128),
-            (105,105,105),( 64,224,208),(205,133, 63),(  0,128,128),( 72,209,204),(139, 69, 19),(255,245,238),
-            (250,240,230),(152,251,152),(  0,255,255),(135,206,235),(  0,191,255),(176,224,230),(  0,250,154),
-            (245,255,250),(240,230,140),(245,222,179),(  0,139,139),(143,188,143),(255,  0,  0),(240,128,128),
-            (102,205,170),( 60,179,113),( 46,139, 87),(165, 42, 42),(178, 34, 34),(175,238,238),(255,248,220),
-            (218,165, 32),(255,250,240),(253,245,230),(244,164, 96),(210,105, 30)]
+# conduct objectness score filtering and non max supperssion
+def process_result(detection, obj_threshhold, nms_threshhold):
+    detection = to_corner(detection)
+    output = torch.tensor([], dtype=torch.float)
 
+    # do it batchwise and classwise
+    for batchi in range(detection.size(0)):
+        bboxes = detection[batchi]
+        bboxes = bboxes[bboxes[:, 4] > obj_threshhold]
 
-def draw_bbox(img, box, cls_name, identity=None, offset=(0,0)):
-    '''
-        draw box of an id
-    '''
-    x1,y1,x2,y2 = [int(i+offset[idx%2]) for idx,i in enumerate(box)]
-    # set color and label text
-    color = COLORS_10[identity%len(COLORS_10)] if identity is not None else COLORS_10[0]
-    label = '{} {}'.format(cls_name, identity)
-    # box text and bar
-    t_size = cv2.getTextSize(label, cv2.FONT_HERSHEY_PLAIN, 1 , 1)[0]
-    cv2.rectangle(img,(x1, y1),(x2,y2),color,2)
-    cv2.rectangle(img,(x1, y1),(x1+t_size[0]+3,y1+t_size[1]+4), color,-1)
-    cv2.putText(img,label,(x1,y1+t_size[1]+4), cv2.FONT_HERSHEY_PLAIN, 1, [255,255,255], 1)
+        if len(bboxes) == 0:
+            continue
+
+        # attributes of each bounding box: x1, y1, x2, y2, objectness score, prediction score, prediction index
+        pred_score, pred_index = torch.max(bboxes[:, 5:], 1)
+        pred_score = pred_score.unsqueeze(-1)
+        pred_index = pred_index.float().unsqueeze(-1)
+        bboxes = torch.cat((bboxes[:, :5], pred_score, pred_index), dim=1)
+        pred_classes = torch.unique(bboxes[:, -1])
+
+        # non max suppression for each predicted class
+
+        for cls in pred_classes:
+            bboxes_cls = bboxes[bboxes[:, -1] == cls]   # select boxes that predict the class
+            _, sort_indices = torch.sort(bboxes_cls[:, 4], descending=True)
+            bboxes_cls = bboxes_cls[sort_indices]   # sort by objectness score
+
+            # select the box with the highest score and get rid of intercepting boxes with big IOU
+            boxi = 0
+            while boxi + 1 < bboxes_cls.size(0):
+                ious = compute_ious(bboxes_cls[boxi], bboxes_cls[boxi+1:])
+                bboxes_cls = torch.cat([bboxes_cls[:boxi+1], bboxes_cls[boxi+1:][ious < nms_threshhold]])
+                boxi += 1
+
+            # add batch index as the first attribute
+            batch_idx_add = torch.full((bboxes_cls.size(0), 1), batchi)
+            bboxes_cls = torch.cat((batch_idx_add, bboxes_cls), dim=1)
+            output = torch.cat((output, bboxes_cls))
+
+    return output
+
+def to_corner(bboxes):
+    newbboxes = bboxes.clone()
+    newbboxes[:, :, 0] = bboxes[:, :, 0] - bboxes[:, :, 2] / 2
+    newbboxes[:, :, 1] = bboxes[:, :, 1] - bboxes[:, :, 3] / 2
+    newbboxes[:, :, 2] = bboxes[:, :, 0] + bboxes[:, :, 2] / 2
+    newbboxes[:, :, 3] = bboxes[:, :, 1] + bboxes[:, :, 3] / 2
+    return newbboxes
+
+def compute_ious(target_box, comp_boxes):
+    targetx1, targety1, targetx2, targety2 = target_box[:4]
+    compx1s, compy1s, compx2s, compy2s = comp_boxes[:, :4].transpose(0, 1)
+
+    interceptx1s = torch.max(targetx1, compx1s)
+    intercepty1s = torch.max(targety1, compy1s)
+    interceptx2s = torch.min(targetx2, compx2s)
+    intercepty2s = torch.min(targety2, compy2s)
+
+    intercept_areas = torch.clamp(interceptx2s - interceptx1s + 1, 0) * torch.clamp(intercepty2s - intercepty1s + 1, 0)
+
+    target_area = (targetx2 - targetx1 + 1) * (targety2 - targety1 + 1)
+    comp_areas = (compx2s - compx1s + 1) * (compy2s - compy1s + 1)
+
+    union_areas = comp_areas + target_area - intercept_areas
+
+    ious = intercept_areas / union_areas
+    return ious
+
+def load_images(impath):
+    if osp.isdir(impath):
+        imlist = [osp.join(impath, img) for img in os.listdir(impath)]
+    elif osp.isfile(impath):
+        imlist = [impath]
+    else:
+        print('%s is not a valid path' % impath)
+        sys.exit(1)
+    imgs = [cv2.imread(path) for path in imlist]
+    return imlist, imgs
+
+def cv_image2tensor(img, size):
+    img = resize_image(img, size)
+    img = img[:, :, ::-1].transpose((2, 0, 1)).copy()
+    img = torch.from_numpy(img).float() / 255.0
+
     return img
 
+# resize_image by scaling while preserving aspect ratio and then padding remaining area with gray pixels
+def resize_image(img, size):
+    h, w = img.shape[0:2]
+    newh, neww = size
+    scale = min(newh / h, neww / w)
+    img_h, img_w = int(h * scale), int(w * scale)
+    img = cv2.resize(img, (img_w, img_h), interpolation=cv2.INTER_CUBIC)
 
-def draw_bboxes(img, bbox, identities=None, offset=(0,0)):
-    for i,box in enumerate(bbox):
-        x1,y1,x2,y2 = [int(i) for i in box]
-        x1 += offset[0]
-        x2 += offset[0]
-        y1 += offset[1]
-        y2 += offset[1]
-        # box text and bar
-        id = int(identities[i]) if identities is not None else 0    
-        color = COLORS_10[id%len(COLORS_10)]
-        label = '{} {}'.format("object", id)
-        t_size = cv2.getTextSize(label, cv2.FONT_HERSHEY_PLAIN, 2 , 2)[0]
-        cv2.rectangle(img,(x1, y1),(x2,y2),color,3)
-        cv2.rectangle(img,(x1, y1),(x1+t_size[0]+3,y1+t_size[1]+4), color,-1)
-        cv2.putText(img,label,(x1,y1+t_size[1]+4), cv2.FONT_HERSHEY_PLAIN, 2, [255,255,255], 2)
-    return img
+    canvas = np.full((newh, neww, 3), 128.0)
+    canvas[(newh - img_h) // 2 : (newh - img_h) // 2 + img_h, (neww - img_w) // 2 : (neww-img_w) // 2 + img_w, :] = img
 
-def softmax(x):
-    assert isinstance(x, np.ndarray), "expect x be a numpy array"
-    x_exp = np.exp(x*5)
-    return x_exp/x_exp.sum()
+    return canvas
 
-def softmin(x):
-    assert isinstance(x, np.ndarray), "expect x be a numpy array"
-    x_exp = np.exp(-x)
-    return x_exp/x_exp.sum()
+# transform bouning box position in the resized image(input image to the network) to the corresponding position in the original image
+def transform_result(detections, imgs, input_size):
+    # get the original image dimensions
+    img_dims = [[img.shape[0], img.shape[1]] for img in imgs]
+    img_dims = torch.tensor(img_dims, dtype=torch.float)
+    img_dims = torch.index_select(img_dims, 0, detections[:, 0].long())
 
+    input_size = torch.tensor(input_size, dtype=torch.float)
 
+    scale_factors = torch.min(input_size / img_dims, 1)[0].unsqueeze(-1)
+    detections[:, [1, 3]] -= (input_size[1] - scale_factors * img_dims[:, 1].unsqueeze(-1)) / 2
+    detections[:, [2, 4]] -= (input_size[0] - scale_factors * img_dims[:, 0].unsqueeze(-1)) / 2
 
-if __name__ == '__main__':
-    x = np.arange(10)/10.
-    x = np.array([0.5,0.5,0.5,0.6,1.])
-    y = softmax(x)
-    z = softmin(x)
-    import ipdb; ipdb.set_trace()
+    detections[:, 1:5] /= scale_factors
+
+    # clipping
+    detections[:, 1:5] = torch.clamp(detections[:, 1:5], 0)
+    detections[:, [1, 3]] = torch.min(detections[:, [1, 3]], img_dims[:, 1].unsqueeze(-1))
+    detections[:, [2, 4]] = torch.min(detections[:, [2, 4]], img_dims[:, 0].unsqueeze(-1))
+
+    return detections
