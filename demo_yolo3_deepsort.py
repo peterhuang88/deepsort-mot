@@ -3,9 +3,11 @@ import cv2
 import numpy as np
 
 from YOLO3 import YOLO3
-import yolov3
+from yolov3.util import process_result
+from yolov3.detector import detect_frame
 from deep_sort import DeepSort
-from util import COLORS_10, draw_bboxes
+from yolov3.darknet import Darknet
+from util1 import COLORS_10, draw_bboxes
 
 import time
 
@@ -14,7 +16,7 @@ class Detector(object):
         self.vdo = cv2.VideoCapture()
         self.yolo3 = YOLO3("YOLO3/cfg/yolo_v3.cfg","YOLO3/yolov3.weights","YOLO3/cfg/coco.names", is_xywh=True)
         self.deepsort = DeepSort("deep/checkpoint/ckpt.t7")
-        self.class_names = self.yolo3.class_names
+        # self.class_names = self.yolo3.class_names
         self.write_video = True
 
     def open(self, video_path):
@@ -30,11 +32,25 @@ class Detector(object):
         
     def detect(self):
         xmin, ymin, xmax, ymax = self.area
+
+
+        model = Darknet("./yolov3/cfg/yolov3.cfg")
+        model.load_weights("./YOLO3/yolov3.weights")
+        model.cuda()
+        model.eval
+        print("loaded YOLO")
+
         while self.vdo.grab(): 
             start = time.time()
             _, ori_im = self.vdo.retrieve()
             im = ori_im[ymin:ymax, xmin:xmax, (2,1,0)]
+
             bbox_xywh, cls_conf, cls_ids = self.yolo3(im)
+            print(cls_conf)
+            print(cls_ids)
+            print("-----------------")
+            # bbox_xywh = detect_frame(model, im)
+
             if bbox_xywh is not None:
                 mask = cls_ids==0
                 bbox_xywh = bbox_xywh[mask]
