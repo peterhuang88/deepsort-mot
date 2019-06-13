@@ -57,10 +57,9 @@ def detect_frame(model, frame):
     frame_tensor = cv_image2tensor(frame, input_size).unsqueeze(0)
     frame_tensor = Variable(frame_tensor)
 
-    if args.cuda:
-        frame_tensor = frame_tensor.cuda()
+    frame_tensor = frame_tensor.cuda()
 
-    detections = model(frame_tensor, args.cuda).cpu()
+    detections = model(frame_tensor, True).cpu()
             
 
     #processresult changes the variable 'detections'
@@ -82,6 +81,7 @@ def detect_frame(model, frame):
 
 def detect_video(model, args):
 
+    draw_bbox([frame], detection, colors, classes)
     input_size = [int(model.net_info['height']), int(model.net_info['width'])]
 
     colors = pkl.load(open("pallete", "rb"))
