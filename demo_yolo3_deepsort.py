@@ -3,6 +3,7 @@ import cv2
 import numpy as np
 
 from YOLO3 import YOLO3
+import yolov3
 from deep_sort import DeepSort
 from util import COLORS_10, draw_bboxes
 
@@ -48,8 +49,8 @@ class Detector(object):
             end = time.time()
             print("time: {}s, fps: {}".format(end-start, 1/(end-start)))
 
-            cv2.imshow("test", ori_im)
-            cv2.waitKey(1)
+            #cv2.imshow("test", ori_im)
+            #cv2.waitKey(1)
 
             if self.write_video:
                 self.output.write(ori_im)
@@ -61,8 +62,8 @@ if __name__=="__main__":
     if len(sys.argv) == 1:
         print("Usage: python demo_yolo3_deepsort.py [YOUR_VIDEO_PATH]")
     else:
-        cv2.namedWindow("test", cv2.WINDOW_NORMAL)
-        cv2.resizeWindow("test", 800,600)
+        #cv2.namedWindow("test", cv2.WINDOW_NORMAL)
+        #cv2.resizeWindow("test", 800,600)
         det = Detector()
         det.open(sys.argv[1])
         det.detect()
