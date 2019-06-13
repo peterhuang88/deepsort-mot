@@ -83,6 +83,7 @@ def detect_frame(model, frame):
 
 def detect_video(model, args):
 
+    draw_bbox([frame], detection, colors, classes)
     input_size = [int(model.net_info['height']), int(model.net_info['width'])]
 
     colors = pkl.load(open("pallete", "rb"))
