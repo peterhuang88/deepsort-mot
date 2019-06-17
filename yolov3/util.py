@@ -7,6 +7,7 @@ import numpy as np
 
 # conduct objectness score filtering and non max supperssion
 def process_result(detection, obj_threshhold, nms_threshhold):
+    print("hi")
     detection = to_corner(detection)
     output = torch.tensor([], dtype=torch.float)
 
@@ -24,9 +25,14 @@ def process_result(detection, obj_threshhold, nms_threshhold):
         pred_index = pred_index.float().unsqueeze(-1)
         bboxes = torch.cat((bboxes[:, :5], pred_score, pred_index), dim=1)
         pred_classes = torch.unique(bboxes[:, -1])
+        #print("bbox: \n", bboxes.cpu().data.numpy())
+        #pred_score.flatten().cpu().data.numpy())
+        #pred_index.flatten().cpu().data.numpy())
+
+        #        return bboxes, pred_score, pred_idx
 
         # non max suppression for each predicted class
-
+        print("ckpt 1")        
         for cls in pred_classes:
             bboxes_cls = bboxes[bboxes[:, -1] == cls]   # select boxes that predict the class
             _, sort_indices = torch.sort(bboxes_cls[:, 4], descending=True)
@@ -43,8 +49,12 @@ def process_result(detection, obj_threshhold, nms_threshhold):
             batch_idx_add = torch.full((bboxes_cls.size(0), 1), batchi)
             bboxes_cls = torch.cat((batch_idx_add, bboxes_cls), dim=1)
             output = torch.cat((output, bboxes_cls))
+            print("ckpt 2")
+    print("ckpt 3")
+    print(output)
+    
+    return output, pred_score.flatten().cpu().data.numpy(), pred_index.flatten().cpu().data.numpy()
 
-    return output
 
 def to_corner(bboxes):
     newbboxes = bboxes.clone()
