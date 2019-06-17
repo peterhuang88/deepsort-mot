@@ -55,6 +55,9 @@ def draw_bbox(imgs, bbox, colors, classes):
 
 def detect_frame(model, frame):
     input_size = [int(model.net_info['height']), int(model.net_info['width'])]
+    #colors = pkl.load(open("pallete", "rb"))
+    # classes = load_classes("data/coco.names")
+    #colors = [colors[1]]
 
     frame_tensor = cv_image2tensor(frame, input_size).unsqueeze(0)
     frame_tensor = Variable(frame_tensor)
@@ -62,10 +65,12 @@ def detect_frame(model, frame):
     frame_tensor = frame_tensor.cuda()
 
     detections = model(frame_tensor, True).cpu()
-            
+           
+    print(detections.shape)
 
     #processresult changes the variable 'detections'
-    detections = process_result(detections, 0.5, 0.4)
+    detections, cls_conf, cls_ids = process_result(detections, 0.5, 0.4)
+    
     if len(detections) != 0:
         detections = transform_result(detections, [frame], input_size)
                 
@@ -78,12 +83,12 @@ def detect_frame(model, frame):
     xywh[:, 3] = abs(detections[:, 2] - detections[:, 4]) #*2
     xywh = xywh.cpu().data.numpy() #-> THe final bounding box that can be replaced in the deepSort
     ######################################################                                
-    return xywh 
+    return xywh, cls_conf, cls_ids
 
 
 def detect_video(model, args):
 
-    draw_bbox([frame], detection, colors, classes)
+   # draw_bbox([frame], detection, colors, classes)
     input_size = [int(model.net_info['height']), int(model.net_info['width'])]
 
     colors = pkl.load(open("pallete", "rb"))
@@ -117,9 +122,15 @@ def detect_video(model, args):
 
             detections = model(frame_tensor, args.cuda).cpu()
             
+            print(detections.shape)
+            
 
             #processresult changes the variable 'detections'
-            detections = process_result(detections, args.obj_thresh, args.nms_thresh)
+            # print(detections)
+            #print(args.obj_thresh)
+            #print(args.nms_thresh)
+            detections, a, b = process_result(detections, args.obj_thresh, args.nms_thresh)
+
             if len(detections) != 0:
                 detections = transform_result(detections, [frame], input_size)
                 for detection in detections:
@@ -134,7 +145,7 @@ def detect_video(model, args):
                 xywh[:, 3] = abs(detections[:, 2] - detections[:, 4]) #*2
                 xywh = xywh.cpu().data.numpy() #-> THe final bounding box that can be replaced in the deepSort
             ######################################################                                
-            print (xywh)
+            #print ("xy: \n", xywh)
             out.write(frame)
             if read_frames % 30 == 0:
                 print('Number of frames processed:', read_frames)

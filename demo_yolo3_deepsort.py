@@ -14,8 +14,8 @@ import time
 class Detector(object):
     def __init__(self):
         self.vdo = cv2.VideoCapture()
-        self.yolo3 = YOLO3("YOLO3/cfg/yolo_v3.cfg","YOLO3/yolov3.weights","YOLO3/cfg/coco.names", is_xywh=True)
-        self.deepsort = DeepSort("deep/checkpoint/ckpt.t7")
+        self.yolo3 = YOLO3("YOLO3/cfg/yolo_v3.cfg","/local/b/cam2/data/HumanBehavior/yolov3.weights","YOLO3/cfg/coco.names", is_xywh=True)
+        self.deepsort = DeepSort("/local/b/cam2/data/HumanBehavior/ckpt.t7")
         # self.class_names = self.yolo3.class_names
         self.write_video = True
 
@@ -35,9 +35,9 @@ class Detector(object):
 
 
         model = Darknet("./yolov3/cfg/yolov3.cfg")
-        model.load_weights("./YOLO3/yolov3.weights")
+        model.load_weights("/local/b/cam2/data/HumanBehavior/yolov3.weights")
         model.cuda()
-        model.eval
+        model.eval()
         print("loaded YOLO")
 
         while self.vdo.grab(): 
@@ -45,11 +45,12 @@ class Detector(object):
             _, ori_im = self.vdo.retrieve()
             im = ori_im[ymin:ymax, xmin:xmax, (2,1,0)]
 
-            bbox_xywh, cls_conf, cls_ids = self.yolo3(im)
-            print(cls_conf)
-            print(cls_ids)
-            print("-----------------")
-            # bbox_xywh = detect_frame(model, im)
+            #bbox_xywh, cls_conf, cls_ids = self.yolo3(im)
+            #print("xy: \n", bbox_xywh)
+            #print("conf: \n", cls_conf)
+            #print("ids: \n", cls_ids)
+            #print("-----------------")
+            bbox_xywh, cls_conf, cls_ids = detect_frame(model, im)
 
             if bbox_xywh is not None:
                 mask = cls_ids==0
