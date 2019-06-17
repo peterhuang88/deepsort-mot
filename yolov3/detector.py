@@ -66,23 +66,30 @@ def detect_frame(model, frame):
 
     detections = model(frame_tensor, True).cpu()
            
-    print(detections.shape)
+    #print(detections.shape)
 
     #processresult changes the variable 'detections'
-    detections, cls_conf, cls_ids = process_result(detections, 0.5, 0.4)
+    detections = process_result(detections, 0.5, 0.4)
+    cls_conf = detections[:, 6]
+    cls_ids = detections[:, 7]
+
+   # print(cls_conf.cpu().data.numpy(), "\n",cls_ids.cpu().data.numpy(),"\n" ,detections)
+    
+   # print('Getting here')
     
     if len(detections) != 0:
         detections = transform_result(detections, [frame], input_size)
                 
-    xywh = detections[:,1:5]
+    xywh = detections[:, 1:5]
     xywh[:, 0] = (detections[:, 1] + detections[:, 3]) / 2
     xywh[:, 1] = (detections[:, 2] + detections[:, 4]) / 2
                 
     # TODO: width and hieght are double what they're supposed to be and dunno why
-    xywh[:, 2] = abs(detections[:, 3] - detections[:, 1]) #*2
-    xywh[:, 3] = abs(detections[:, 2] - detections[:, 4]) #*2
+    xywh[:, 2] = abs(detections[:, 3] - detections[:, 1]) *2
+    xywh[:, 3] = abs(detections[:, 2] - detections[:, 4]) *2
     xywh = xywh.cpu().data.numpy() #-> THe final bounding box that can be replaced in the deepSort
     ######################################################                                
+    #print(xywh)
     return xywh, cls_conf, cls_ids
 
 
