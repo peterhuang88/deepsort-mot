@@ -16,7 +16,7 @@ class Detector(object):
         self.vdo = cv2.VideoCapture()
         self.yolo3 = YOLO3("YOLO3/cfg/yolo_v3.cfg","/local/b/cam2/data/HumanBehavior/yolov3.weights","YOLO3/cfg/coco.names", is_xywh=True)
         self.deepsort = DeepSort("/local/b/cam2/data/HumanBehavior/ckpt.t7")
-        # self.class_names = self.yolo3.class_names
+        self.class_names = self.yolo3.class_names
         self.write_video = True
 
     def open(self, video_path):
@@ -69,8 +69,7 @@ class Detector(object):
             #cv2.imshow("test", ori_im)
             #cv2.waitKey(1)
 
-            if self.write_video:
-                self.output.write(ori_im)
+            self.output.write(ori_im)
             
 
 
