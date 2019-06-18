@@ -70,9 +70,9 @@ def detect_frame(model, frame):
 
     #processresult changes the variable 'detections'
     detections = process_result(detections, 0.5, 0.4)
-    cls_conf = detections[:, 6]
-    cls_ids = detections[:, 7]
-
+    cls_conf = detections[:, 6].cpu().data.numpy()
+    cls_ids = detections[:, 7].cpu().data.numpy()
+    print(detections)
    # print(cls_conf.cpu().data.numpy(), "\n",cls_ids.cpu().data.numpy(),"\n" ,detections)
     
    # print('Getting here')
