@@ -27,7 +27,7 @@ class Detector(object):
         self.area = 0, 0, self.im_width, self.im_height
         if self.write_video:
             fourcc =  cv2.VideoWriter_fourcc(*'MJPG')
-            self.output = cv2.VideoWriter("demo.avi", fourcc, 30, (self.im_width,self.im_height))
+            self.output = cv2.VideoWriter("sort_demo.avi", fourcc, 30, (self.im_width,self.im_height))
         return self.vdo.isOpened()
         
     def detect(self):
@@ -38,7 +38,10 @@ class Detector(object):
         model.load_weights("/local/b/cam2/data/HumanBehavior/yolov3.weights")
         model.cuda()
         model.eval()
-        print("loaded YOLO")
+        print("Loaded YOLO....")
+
+        # keep track of frame number we are on
+        frame_num = 1
 
         while self.vdo.grab(): 
             start = time.time()
@@ -52,23 +55,30 @@ class Detector(object):
             print("ids: \n", cls_ids)
             print("-----------------")
             '''
-            bbox_xywh, cls_conf, cls_ids = detect_frame(model, im)
+            bbox_xywh, cls_confs, cls_ids = detect_frame(model, im)
             '''
             print("xy: \n", bbox_xywh)
             print("conf: \n", cls_conf)
             print("ids: \n", cls_ids)
             print("-----------------")
             '''
-            if bbox_xywh is not None:
-                mask = cls_ids==0
-                bbox_xywh = bbox_xywh[mask]
-                bbox_xywh[:,3] *= 1.2
-                cls_conf = cls_conf[mask]
-                outputs = self.deepsort.update(bbox_xywh, cls_conf, im)
-                if len(outputs) > 0:
-                    bbox_xyxy = outputs[:,:4]
-                    identities = outputs[:,-1]
-                    ori_im = draw_bboxes(ori_im, bbox_xyxy, identities, offset=(xmin,ymin))
+            # convert to MOT 16 format
+            xs  = bbox_xywh[0]
+            ys  = bbox_xywh[1]
+            ws = bbox_xywh[2]
+            hs = bbox_xywh[3]
+            new_xs = xs - ws / 2
+            new_ys = ys - hs / 2
+            
+            MOT16_bbox = np.zeros(10)
+            first = True
+            for cls_id, cls_conf,x,y,w,h in zip(cls_ids, cls_confs, new_xs, new_ys, ws, hs):
+                # MOT16_bbox = np.array([frame_num, cls_ids, new_x, new_y, w, h, cls_conf, -1, -1, -1])
+                MOT16_bbox = np.append([MOT16_bbox], [[frame_num, cls_id, new_x, new_y, w, h, cls_conf, -1, -1, -1], axis=0)
+
+             
+
+            frame_num += 1
 
             end = time.time()
             #print("time: {}s, fps: {}".format(end-start, 1/(end-start)))
@@ -76,8 +86,11 @@ class Detector(object):
             #cv2.imshow("test", ori_im)
             #cv2.waitKey(1)
 
-            self.output.write(ori_im)
-        print("done...")
+            #self.output.write(ori_im)
+            # TODO: remove when processing whole video
+            break
+        print(MOT16_bbox)
+        print("Done...")
 
 
 if __name__=="__main__":

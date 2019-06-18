@@ -30,7 +30,7 @@ class DeepSort(object):
         scores = np.array([d.confidence for d in detections])
         indices = non_max_suppression( boxes, self.nms_max_overlap, scores)
         detections = [detections[i] for i in indices]
-        #print(detections)
+        
         # update tracker
         self.tracker.predict()
         self.tracker.update(detections)
