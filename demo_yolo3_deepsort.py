@@ -27,7 +27,7 @@ class Detector(object):
         self.area = 0, 0, self.im_width, self.im_height
         if self.write_video:
             fourcc =  cv2.VideoWriter_fourcc(*'MJPG')
-            self.output = cv2.VideoWriter("demo.avi", fourcc, 20, (self.im_width,self.im_height))
+            self.output = cv2.VideoWriter("demo.avi", fourcc, 30, (self.im_width,self.im_height))
         return self.vdo.isOpened()
         
     def detect(self):
