@@ -18,7 +18,7 @@ def process_result(detection, obj_threshhold, nms_threshhold):
 
         if len(bboxes) == 0:
             continue
-
+        print(bboxes)
         # attributes of each bounding box: x1, y1, x2, y2, objectness score, prediction score, prediction index
         pred_score, pred_index = torch.max(bboxes[:, 5:], 1)
         pred_score = pred_score.unsqueeze(-1)
