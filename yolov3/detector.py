@@ -136,13 +136,13 @@ def detect_video(model, args):
             # print(detections)
             #print(args.obj_thresh)
             #print(args.nms_thresh)
-            detections, a, b = process_result(detections, args.obj_thresh, args.nms_thresh)
+            detections = process_result(detections, args.obj_thresh, args.nms_thresh)
 
             if len(detections) != 0:
                 detections = transform_result(detections, [frame], input_size)
                 for detection in detections:
                     draw_bbox([frame], detection, colors, classes)
-                
+                    print(detection)            
                 xywh = detections[:,1:5]
                 xywh[:, 0] = (detections[:, 1] + detections[:, 3]) / 2
                 xywh[:, 1] = (detections[:, 2] + detections[:, 4]) / 2
