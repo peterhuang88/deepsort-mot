@@ -12,6 +12,7 @@ import os.path as osp
 import os
 import sys
 from datetime import datetime
+from new_sort.sort import Sort
 
 #Sort imports
 #from new_sort.sort import *
@@ -119,7 +120,7 @@ def detect_video(model, args):
     read_frames = 0
     MOT16_bbox = np.empty((0,10))
 
-    #mot_tracker = Sort()
+    mot_tracker = Sort()
 
     start_time = datetime.now()
     print('Detecting...')
@@ -174,8 +175,8 @@ def detect_video(model, args):
                     np.set_printoptions(precision=2, linewidth=150)
                     MOT16_bbox = np.append(MOT16_bbox, [MOT16_temp], axis=0)
                 
-                #tracking_boxes = mot_tracker.update(MOT_bbox)
-                #print(tracking_boxes)
+                tracking_boxes = mot_tracker.update(MOT16_bbox)
+                # print(tracking_boxes)
 
             #out.write(frame)
             if read_frames % 30 == 0:
@@ -186,7 +187,7 @@ def detect_video(model, args):
     end_time = datetime.now()
     print('Detection finished in %s' % (end_time - start_time))
     print('Total frames:', read_frames)
-    print('MOT16_bbox: \n', MOT16_bbox)
+    # print('MOT16_bbox: \n', MOT16_bbox)
     cap.release()
     out.release()
 
