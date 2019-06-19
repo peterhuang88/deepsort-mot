@@ -8,6 +8,7 @@ from yolov3.detector import detect_frame
 from deep_sort import DeepSort
 from yolov3.darknet import Darknet
 from util1 import COLORS_10, draw_bboxes
+from new_sort.sort import *
 
 import time
 
@@ -39,10 +40,12 @@ class Detector(object):
         model.cuda()
         model.eval()
         print("Loaded YOLO....")
-
+        mot_tracker = Sort()
+        
         # keep track of frame number we are on
-        frame_num = 1
-
+        frame_num = 1   
+        MOT16_bbox = np.empty((0,10))
+        
         while self.vdo.grab(): 
             start = time.time()
             _, ori_im = self.vdo.retrieve()
@@ -69,26 +72,26 @@ class Detector(object):
             hs = bbox_xywh[3]
             new_xs = xs - ws / 2
             new_ys = ys - hs / 2
-            
-            MOT16_bbox = np.zeros(10)
-            first = True
+             
             for cls_id, cls_conf,x,y,w,h in zip(cls_ids, cls_confs, new_xs, new_ys, ws, hs):
                 # MOT16_bbox = np.array([frame_num, cls_ids, new_x, new_y, w, h, cls_conf, -1, -1, -1])
-                MOT16_bbox = np.append([MOT16_bbox], [[frame_num, cls_id, new_x, new_y, w, h, cls_conf, -1, -1, -1], axis=0)
-
-             
-
+                MOT16_temp = [frame_num, cls_id, x, y, w, h, cls_conf, -1, -1, -1]
+                np.set_printoptions(precision=2, linewidth = 150)
+                #print("MOT16_temp: \n", MOT16_temp)
+                MOT16_bbox = np.append(MOT16_bbox, [MOT16_temp], axis=0)
+            
+            tracking = mot_tracker.update(MOT16_bbox)
+            print(tracking)
             frame_num += 1
 
             end = time.time()
-            #print("time: {}s, fps: {}".format(end-start, 1/(end-start)))
+            print("time: {}s, fps: {}".format(end-start, 1/(end-start)))
 
             #cv2.imshow("test", ori_im)
             #cv2.waitKey(1)
 
             #self.output.write(ori_im)
             # TODO: remove when processing whole video
-            break
         print(MOT16_bbox)
         print("Done...")
 

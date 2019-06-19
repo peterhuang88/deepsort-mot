@@ -1,3 +1,5 @@
+(Source for the deepsort algorithm base code: https://github.com/ZQPei/deep_sort_pytorch)
+
 # Deep Sort with PyTorch
 
 ## Introduction
