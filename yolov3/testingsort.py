@@ -57,6 +57,22 @@ def draw_bbox(img, bbox, colors, classes):
     cv2.rectangle(img, p3, p4, color, -1)
     cv2.putText(img, label, p1, cv2.FONT_HERSHEY_SIMPLEX, 1, [225, 255, 255], 1)
 
+def draw_mot_bbox(img, bbox, colors, classes):
+    #img = imgs[int(bbox[0])]
+    # label = classes[int(bbox[-1])]
+    label = int(bbox[-1])
+    label = "Object " + str(label)
+    p1 = tuple(bbox[0:2].int())
+    p2 = tuple(bbox[2:4].int())
+
+    color = random.choice(colors)
+    cv2.rectangle(img, p1, p2, color, 2)
+    text_size = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 1, 1)[0]
+    p3 = (p1[0], p1[1] - text_size[1] - 4)
+    p4 = (p1[0] + text_size[0] + 4, p1[1])
+    cv2.rectangle(img, p3, p4, color, -1)
+    cv2.putText(img, label, p1, cv2.FONT_HERSHEY_SIMPLEX, 1, [225, 255, 255], 1)
+
 def detect_frame(model, frame):
     input_size = [int(model.net_info['height']), int(model.net_info['width'])]
     colors = pkl.load(open("pallete", "rb"))
@@ -177,9 +193,11 @@ def detect_video(model, args):
                     MOT16_bbox = np.append(MOT16_bbox, [MOT16_temp], axis=0)
                 
                 tracking_boxes = mot_tracker.update(MOT16_bbox)
-                #print(tracking_boxes)
-            for tracking_box in tracking_boxes:
-                draw_bbox(frame, torch.from_numpy(tracking_box), colors, classes)
+                #print("-------------------NEW BOX-------------------------")
+                for tracking_box in tracking_boxes:
+                    #print(tracking_box)
+                    draw_mot_bbox(frame, torch.from_numpy(tracking_box), colors, classes)
+                #print("------------------END BOX--------------------------")
             out.write(frame)
             if read_frames % 30 == 0:
                 print('Number of frames processed:', read_frames)
