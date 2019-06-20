@@ -15,7 +15,7 @@ from datetime import datetime
 from new_sort.sort import Sort
 
 #Sort imports
-#from new_sort.sort import *
+from new_sort.sort import *
 
 def load_classes(namesfile):
     fp = open(namesfile, "r")
@@ -43,11 +43,27 @@ def create_batches(imgs, batch_size):
 
     return batches
 
-def draw_bbox(imgs, bbox, colors, classes):
-    img = imgs[int(bbox[0])]
+def draw_bbox(img, bbox, colors, classes):
+    #img = imgs[int(bbox[0])]
     label = classes[int(bbox[-1])]
-    p1 = tuple(bbox[1:3].int())
-    p2 = tuple(bbox[3:5].int())
+    p1 = tuple(bbox[0:2].int())
+    p2 = tuple(bbox[2:4].int())
+
+    color = random.choice(colors)
+    cv2.rectangle(img, p1, p2, color, 2)
+    text_size = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 1, 1)[0]
+    p3 = (p1[0], p1[1] - text_size[1] - 4)
+    p4 = (p1[0] + text_size[0] + 4, p1[1])
+    cv2.rectangle(img, p3, p4, color, -1)
+    cv2.putText(img, label, p1, cv2.FONT_HERSHEY_SIMPLEX, 1, [225, 255, 255], 1)
+
+def draw_mot_bbox(img, bbox, colors, classes):
+    #img = imgs[int(bbox[0])]
+    # label = classes[int(bbox[-1])]
+    label = int(bbox[-1])
+    label = "Object " + str(label)
+    p1 = tuple(bbox[0:2].int())
+    p2 = tuple(bbox[2:4].int())
 
     color = random.choice(colors)
     cv2.rectangle(img, p1, p2, color, 2)
@@ -59,9 +75,9 @@ def draw_bbox(imgs, bbox, colors, classes):
 
 def detect_frame(model, frame):
     input_size = [int(model.net_info['height']), int(model.net_info['width'])]
-    #colors = pkl.load(open("pallete", "rb"))
-    # classes = load_classes("data/coco.names")
-    #colors = [colors[1]]
+    colors = pkl.load(open("pallete", "rb"))
+    classes = load_classes("data/coco.names")
+    colors = [colors[1]]
 
     frame_tensor = cv_image2tensor(frame, input_size).unsqueeze(0)
     frame_tensor = Variable(frame_tensor)
@@ -116,9 +132,9 @@ def detect_video(model, args):
     fps = cap.get(cv2.CAP_PROP_FPS)
 
     fourcc = cv2.VideoWriter_fourcc(*'XVID')
-    out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
+    #TODO: Change output path?
+    out = cv2.VideoWriter("output.avi", fourcc, fps, (width, height))
     read_frames = 0
-    MOT16_bbox = np.empty((0,10))
 
     mot_tracker = Sort()
 
@@ -150,7 +166,6 @@ def detect_video(model, args):
             if len(detections) != 0:
                 detections = transform_result(detections, [frame], input_size)
                 #for detection in detections:
-                #    draw_bbox([frame], detection, colors, classes)
                 
                 xywh = detections[:,1:5]
                 xywh[:, 0] = (detections[:, 1] + detections[:, 3]) / 2
@@ -169,16 +184,21 @@ def detect_video(model, args):
                 hs = xywh[3]
                 new_xs = xs - ws/2
                 new_ys = ys - hs/2
-
+                
+                MOT16_bbox = np.empty((0,10))
+                
                 for cls_id, cls_conf, x,y,w,h in zip(cls_ids, cls_confs, new_xs, new_ys, ws, hs):
                     MOT16_temp = [read_frames, cls_id, x, y, w, h, cls_conf, -1, -1, -1]
                     np.set_printoptions(precision=2, linewidth=150)
                     MOT16_bbox = np.append(MOT16_bbox, [MOT16_temp], axis=0)
                 
                 tracking_boxes = mot_tracker.update(MOT16_bbox)
-                # print(tracking_boxes)
-
-            #out.write(frame)
+                #print("-------------------NEW BOX-------------------------")
+                for tracking_box in tracking_boxes:
+                    #print(tracking_box)
+                    draw_mot_bbox(frame, torch.from_numpy(tracking_box), colors, classes)
+                #print("------------------END BOX--------------------------")
+            out.write(frame)
             if read_frames % 30 == 0:
                 print('Number of frames processed:', read_frames)
         else:
