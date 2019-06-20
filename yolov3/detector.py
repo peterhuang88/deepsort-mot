@@ -142,7 +142,7 @@ def detect_video(model, args):
                 detections = transform_result(detections, [frame], input_size)
                 for detection in detections:
                     draw_bbox([frame], detection, colors, classes)
-                    print(detection)            
+                    #print(detection)            
                 xywh = detections[:,1:5]
                 xywh[:, 0] = (detections[:, 1] + detections[:, 3]) / 2
                 xywh[:, 1] = (detections[:, 2] + detections[:, 4]) / 2
