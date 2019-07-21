@@ -71,7 +71,7 @@ class Detector(object):
                     ori_im = draw_bboxes(ori_im, bbox_xyxy, identities, offset=(xmin,ymin))
 
             end = time.time()
-            #print("time: {}s, fps: {}".format(end-start, 1/(end-start)))
+            print("time: {}s, fps: {}".format(end-start, 1/(end-start)))
 
             #cv2.imshow("test", ori_im)
             #cv2.waitKey(1)

@@ -168,31 +168,43 @@ def detect_video(model, args):
                 #for detection in detections:
                 
                 xywh = detections[:,1:5]
+                '''
                 xywh[:, 0] = (detections[:, 1] + detections[:, 3]) / 2
                 xywh[:, 1] = (detections[:, 2] + detections[:, 4]) / 2
                 
                 # TODO: width and hieght are double what they're supposed to be and dunno why
-                xywh[:, 2] = abs(detections[:, 3] - detections[:, 1]) #*2
-                xywh[:, 3] = abs(detections[:, 2] - detections[:, 4]) #*2
+                xywh[:, 2] = abs(detections[:, 3] - detections[:, 1]) *2
+                xywh[:, 3] = abs(detections[:, 2] - detections[:, 4]) *2
+                '''
                 xywh = xywh.cpu().data.numpy() #-> THe final bounding box that can be replaced in the deepSort
-            ######################################################                                
-           
+                ######################################################                                
+                #print(xywh.shape)
+                #print(cls_confs.shape)
+                #num_dets, temp = xywh.shape
                 #Convert to MOT format
-                xs = xywh[0]
-                ys = xywh[1]
-                ws = xywh[2]
-                hs = xywh[3]
-                new_xs = xs - ws/2
-                new_ys = ys - hs/2
+                xs = xywh[: , 0]
+                ys = xywh[:, 1]
+                ws = xywh[:, 2]
+                hs = xywh[:, 3]
+                #new_xs = xs - ws/2
+                #new_ys = ys - hs/2
                 
-                MOT16_bbox = np.empty((0,10))
+                MOT16_bbox = np.empty((0,5))
                 
-                for cls_id, cls_conf, x,y,w,h in zip(cls_ids, cls_confs, new_xs, new_ys, ws, hs):
-                    MOT16_temp = [read_frames, cls_id, x, y, w, h, cls_conf, -1, -1, -1]
+                
+                for cls_id, cls_conf, x,y,w,h in zip(cls_ids, cls_confs, xs, ys, ws, hs):
+                    #MOT16_temp = [read_frames, cls_id, x, y, w, h, cls_conf, -1, -1, -1]
+                    MOT16_temp = [x, y, w, h, cls_conf]
                     np.set_printoptions(precision=2, linewidth=150)
                     MOT16_bbox = np.append(MOT16_bbox, [MOT16_temp], axis=0)
-                
+                """ 
+                for i in range(num_dets):
+                    # what exactly is read_frames
+                    MOT16_temp = [xywh[i][0], xywh[i][1], xywh[i][2], xywh[i][3]]
+                """
+                #print("bboxinput: ", MOT16_bbox) 
                 tracking_boxes = mot_tracker.update(MOT16_bbox)
+                #print("output: ", tracking_boxes)
                 #print("-------------------NEW BOX-------------------------")
                 for tracking_box in tracking_boxes:
                     #print(tracking_box)
